@@ -89,8 +89,10 @@ sub get_start_line_chunk {
 sub is_handshake { lc($_[0]->headers->upgrade // '') eq 'websocket' }
 
 sub is_secure {
-  my $url = shift->url;
-  return ($url->protocol || $url->base->protocol) eq 'https';
+  my $self = shift;
+  my $url = $self->url;
+  my $headers = $self->headers;
+  return ($url->protocol || $url->base->protocol || $headers->header('X-Forwarded-Proto')) eq 'https';
 }
 
 sub is_xhr {

@@ -2,6 +2,7 @@ package Mojolicious::Command::get;
 use Mojo::Base 'Mojolicious::Command';
 
 use Mojo::DOM;
+use Mojo::File 'path';
 use Mojo::IOLoop;
 use Mojo::JSON qw(encode_json j);
 use Mojo::JSON::Pointer;
@@ -21,6 +22,7 @@ sub run {
     'c|content=s'            => \(my $content = ''),
     'H|header=s'             => \my @headers,
     'i|inactivity-timeout=i' => sub { $ua->inactivity_timeout($_[1]) },
+    'j|cookie-jar=s'         => \my $cookie_jar,
     'M|method=s'             => \(my $method = 'GET'),
     'o|connect-timeout=i'    => sub { $ua->connect_timeout($_[1]) },
     'r|redirect'             => \my $redirect,
@@ -62,7 +64,10 @@ sub run {
   # Switch to verbose for HEAD requests
   $verbose = 1 if $method eq 'HEAD';
   STDOUT->autoflush(1);
-  my $tx = $ua->start($ua->build_tx($method, $url, \%headers, $content));
+  my $tx = $ua->build_tx($method, $url, \%headers, $content);
+  $tx->req->cookies(map { @{Mojo::Cookie::Response->parse($_)} } @{j(path($cookie_jar)->slurp)}) if $cookie_jar;
+  $tx = $ua->start($tx);
+  path($cookie_jar)->spurt(j($tx->res->cookies)) if $cookie_jar;
   my $res = $tx->result;
 
   # JSON Pointer
